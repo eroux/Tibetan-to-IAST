@@ -100,16 +100,16 @@ class StateAutomaton():
 				self.lengthened = True
 			if self.after_r:
 				if self.lengthened:
-					self.res += "ṝ"
+					self.vowel = "ṝ"
 				else:
-					self.res += "ṛ"
+					self.vowel = "ṛ"
 			elif self.after_l:
 				if self.lengthened:
-					self.res += "ḹ"
+					self.vowel = "ḹ"
 				else:
-					self.res += "ḷ"
+					self.vowel = "ḷ"
 			else:
-				logging.warn("reverse gigu should only be after l or r")
+				logging.warning("reverse gigu should only be after l or r")
 				self.vowel = token_s
 				if self.lengthened:
 					self.vowel = lengthen(self.vowel)
@@ -141,8 +141,6 @@ class StateAutomaton():
 					self.after_l = False
 			if cat == Cats.Other:
 				self.finish_aksara()
-				print(self.res)
-				print(token_s)
 				self.res += token_s
 				self.state = State.Other
 			if cat == Cats.Virama:
@@ -196,9 +194,6 @@ CHAR_TOKENS = {
 	"ཛ": ("j", Cats.Base, 0),
 	"ཛྷ": ("jh", Cats.Base, 0),
 	"ཝ": ("v", Cats.Base, 0), # ?
-	"ཞ": (""), # ?
-	"ཟ": (""), # ?
-	"འ": (""), # ?
 	"ཡ": ("y", Cats.Base, 0),
 	"ར": ("r", Cats.Base, Special.R),
 	"ལ": ("l", Cats.Base, Special.L),
@@ -259,9 +254,6 @@ CHAR_TOKENS = {
 	"\u0fab": ("j", Cats.Subscript, 0),
 	"\u0fac": ("jh", Cats.Subscript, 0),
 	"\u0fad": ("v", Cats.Subscript, 0), # ?
-	"\u0fae": (""), # ?
-	"\u0faf": (""), # ?
-	"\u0fb0": (""), # ? lengthening?
 	"\u0fb1": ("y", Cats.Subscript, 0),
 	"\u0fb2": ("r", Cats.Subscript, Special.R),
 	"\u0fb3": ("l", Cats.Subscript, Special.L),
@@ -269,12 +261,13 @@ CHAR_TOKENS = {
 	"\u0fb5": ("ṣ", Cats.Subscript, 0),
 	"\u0fb6": ("s", Cats.Subscript, 0),
 	"\u0fb7": ("h", Cats.Subscript, 0),
-	"\u0fb8": (""), # ?
 	"\u0fb9": ("kṣ", Cats.Subscript, 0),
 	"\u0fba": ("v", Cats.Subscript, 0),
 	"\u0fbb": ("y", Cats.Subscript, 0),
 	"\u0fbc": ("r", Cats.Subscript, Special.R),
 }
+
+NON_SANSKRIT_CHARS = ["ཞ", "ཟ", "འ", "\u0fb8", "\u0fae", "\u0faf", "\u0fb0"]
 
 def tibskrit_to_iast(s):
 	state = StateAutomaton()
@@ -283,7 +276,12 @@ def tibskrit_to_iast(s):
 		if c in CHAR_TOKENS:
 			state.update_with_token(CHAR_TOKENS[c])
 		else:
-			state.update_with_token(("", Cats.Other, 0))
+			if c in NON_SANSKRIT_CHARS:
+				logging.error("%s cannot be converted to IAST", c)
+				continue
+			if c != "\n":
+				c = ""
+			state.update_with_token((c, Cats.Other, 0))
 	return state.get_result()
 
 def assert_conv(orig, expected):
