@@ -1,6 +1,6 @@
 # Tibetan-to-IAST
 
-Tools to convert Sanskrit (and other Indic scripts) from Tibetan script to IAST.
+Tools to convert Sanskrit (and other Indic languages) from Tibetan script to IAST.
 
 ## Resources
 
