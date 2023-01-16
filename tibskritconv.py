@@ -155,7 +155,7 @@ class StateAutomaton():
             if cat == Cats.AfterVowel:
                 self.post_vowel = token_s
             if cat == Cats.Base:
-                if self.state == State.AfterConsonant:# or self.state == State.AfterVowel:
+                if self.state == State.AfterConsonant or self.state == State.AfterVowel:
                     # add a
                     self.finish_aksara()
                 self.res += token_s
