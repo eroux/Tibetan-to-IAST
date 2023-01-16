@@ -1,13 +1,123 @@
 import re
 from enum import Enum
-from normalize_unicode import normalize_unicode
 from pathlib import Path
 import logging
 
-# ṃ ḥ ā ī ū ṛ ṝ ḷ ḹ 
-
 ANUNASIKA_CHARACTER = "m\u0310"
 ANUNASIKA_CHARACTER_2 = "m\u0301"
+
+# first some Unicode normalization
+
+class OrderCats(Enum):
+    Other = 0
+    Base = 1
+    Subscript = 2
+    BottomVowel = 3
+    BottomMark = 4
+    TopVowel = 5
+    TopMark = 6
+    RightMark = 7
+
+CATEGORIES =  ([OrderCats.Other]           # 0F00
+             + [OrderCats.Base]            # 0F01, often followed by 0f083
+             + [OrderCats.Other] * 22      # 0F02-0F17
+             + [OrderCats.BottomVowel] * 2 # 0F18-0F19
+             + [OrderCats.Other] * 6       # 0F1A-0F1F
+             + [OrderCats.Base] * 20       # 0F20-0F33, numbers can be followed by 0f18, 0f19 or exceptionally by vowels
+             + [OrderCats.Other]           # 0F34
+             + [OrderCats.BottomMark]      # 0F35
+             + [OrderCats.Other]           # 0F36
+             + [OrderCats.BottomMark]      # OF37
+             + [OrderCats.Other]           # 0F38
+             + [OrderCats.Subscript]       # 0F39, kind of cheating but works
+             + [OrderCats.Other] * 4       # 0F3A-0F3D
+             + [OrderCats.RightMark]       # 0F3E
+             + [OrderCats.Other]           # 0F3F, not quite sure
+             + [OrderCats.Base] * 45       # 0F40-0F6C
+             + [OrderCats.Other] * 4       # 0F6D-0F70
+             + [OrderCats.BottomVowel]     # 0F71
+             + [OrderCats.TopVowel]        # 0F72
+             + [OrderCats.TopVowel]        # 0F73
+             + [OrderCats.BottomVowel] * 2 # 0F74-0F75
+             + [OrderCats.TopVowel] * 8    # 0F76-0F7D
+             + [OrderCats.TopMark]         # 0F7E
+             + [OrderCats.RightMark]       # 0F7F
+             + [OrderCats.TopVowel] * 2    # 0F80-0F81
+             + [OrderCats.TopMark] * 2     # 0F82-0F83
+             + [OrderCats.BottomMark]      # 0F84
+             + [OrderCats.Other]           # 0F85
+             + [OrderCats.TopMark] * 2     # 0F86-0F87
+             + [OrderCats.Base] * 2        # 0F88-0F89
+             + [OrderCats.Base]            # 0F8A always followed by 0f82 (required by the Unicode spec)
+             + [OrderCats.Other]           # 0F8B
+             + [OrderCats.Base]            # 0F8C
+             + [OrderCats.Subscript] * 48  # 0F8D-0FBC
+             )
+
+def charcat(c):
+    ''' Returns the category for a single char string'''
+    o = ord(c)
+    if 0x0F00 <= o <= 0x0FBC:
+        return CATEGORIES[o-0x0F00]
+    return OrderCats.Other
+
+# debug:
+#for i, c in enumerate(CATEGORIES):
+#    print("%x : %d" % (0x0F00 + i , c.value))
+
+def unicode_reorder(txt):
+    # inpired from code for Khmer Unicode provided by SIL
+    # https://docs.microsoft.com/en-us/typography/script-development/tibetan#reor
+    # https://docs.microsoft.com/en-us/typography/script-development/use#glyph-reordering
+    charcats = [charcat(c) for c in txt]
+    # find subranges of base+non other and sort components in the subrange
+    i = 0
+    res = []
+    valid = True
+    while i < len(charcats):
+        c = charcats[i]
+        if c != OrderCats.Base:
+            if c.value > OrderCats.Base.value:
+                valid = False
+            res.append(txt[i])
+            i += 1
+            continue
+        # scan for end of component
+        j = i + 1
+        while j < len(charcats) and charcats[j].value > OrderCats.Base.value:
+            j += 1
+        # sort syllable based on character categories
+        # sort the char indices by category then position in string
+        newindices = sorted(range(i, j), key=lambda e:(charcats[e].value, e))
+        replaces = "".join(txt[n] for n in newindices)
+        res.append(replaces)
+        i = j
+    return "".join(res), valid
+
+def normalize_unicode(s):
+    # The code works on both NFD and NFC so there is no need to pick one or the other
+    # deprecated or discouraged characters
+    s = s.replace("\u0f73", "\u0f71\u0f72") # use is discouraged
+    s = s.replace("\u0f75", "\u0f71\u0f74") # use is discouraged
+    s = s.replace("\u0f77", "\u0fb2\u0f71\u0f80") # deprecated
+    s = s.replace("\u0f79", "\u0fb3\u0f71\u0f80") # deprecated
+    s = s.replace("\u0f81", "\u0f71\u0f80") # use is discouraged
+    # 0f00 has not been marked as a composed character in Unicode
+    # This is something that is now seen as a mistake, but it cannot be
+    # changed because of Unicode change policies.
+    s = s.replace("\u0f00", "\u0f68\u0f7c\u0f7e")
+    # /!\ some fonts don't display these combinations in the exact same way
+    # but since there's no semantic distinction and the graphical variation
+    # is unclear, it seems safe
+    s = s.replace("\u0f7a\u0f7a", "\u0f7b")
+    s = s.replace("\u0f7c\u0f7c", "\u0f7d")
+    # no 0f71 in the middle of stacks, only 0fb0
+    s = re.sub(r"[\u0f71]([\u0f8d-\u0fac\u0fae\u0fb0\u0fb3-\u0fbc])", "\u0fb0\\1", s)
+    # no 0fb0 at the end of stacks, only 0f71
+    s = re.sub(r"[\u0fb0]([^\u0f8d-\u0fac\u0fae\u0fb0\u0fb3-\u0fbc]|$)", "\u0f71\\1", s)
+    s, valid = unicode_reorder(s)
+    return s
+
 
 class Cats(Enum):
     Other = 0
@@ -295,7 +405,7 @@ def tibskrit_to_iast(s):
 
 def assert_conv(orig, expected):
     res = tibskrit_to_iast(orig)
-    print(res)
+    print("%s -> %s" % (orig, res))
     assert expected == res
 
 def test():
@@ -311,15 +421,5 @@ def test():
     assert_conv("ཎཱཾ", "ṇāṃ")
     assert_conv("དུརྦྲྀཏྟཾ", "durbṛttaṃ")
 
-def test_D4155():
-    s = Path("D4155.txt").read_text()
-    res = tibskrit_to_iast(s)
-    print(res)
-
-def shortTest():
-    res = tibskrit_to_iast('།ཀརྨྨོ་པ་དེ་ཤཾ་བྷིཀྵཱུ་ཎཱཾ་སརྦྦ་ཛྙཿཀརྟྟ་མུ་ཏྱ་ཏཿ།')
-    print(res)
-
-#test()
-#shortTest()
-test_D4155()
+if __name__ == "__main__":
+    test()
