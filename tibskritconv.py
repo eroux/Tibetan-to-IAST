@@ -149,7 +149,7 @@ class StateAutomaton():
 				self.reset()
 				self.state = State.AfterVirama
 			if cat == Cats.Base:
-				if self.state == State.AfterConsonnant:
+				if self.state == State.AfterConsonnant or self.state == State.AfterVowel:
 					# add a
 					self.finish_aksara()
 				self.res += token_s
@@ -298,10 +298,12 @@ def test():
 	assert_conv("ག\u0f71\u0f74", "gū")
 	assert_conv("ག\u0f74\u0f71", "gū")
 	assert_conv("ག\u0f84མ", "gma") # virama
+	assert_conv("བྷིཀྵཱུ", "bhikṣū")
 
 def test_D4155():
 	s = Path("D4155.txt").read_text()
 	res = tibskrit_to_iast(s)
 	print(res)
 
-test_D4155()
+test()
+#test_D4155()
