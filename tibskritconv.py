@@ -80,7 +80,7 @@ class StateAutomaton():
         (token_s, cat, special) = t
         logging.debug("new token (%s, %s, %s), state ('%s', %s, r=%s, l=%s, long=%s)", token_s, cat, special, self.res, self.state, self.after_r, self.after_l, self.lengthened)
         if cat == Cats.Base and (special == Special.L or special == Special.R):
-            if self.state == State.AfterConsonant:
+            if self.state == State.AfterConsonant or State.AfterVowel:
                 # add a
                 self.finish_aksara()
         if special == Special.R:
@@ -202,7 +202,7 @@ CHAR_TOKENS = {
     "ཚ": ("ch", Cats.Base, 0),
     "ཛ": ("j", Cats.Base, 0),
     "ཛྷ": ("jh", Cats.Base, 0),
-    "ཝ": ("v", Cats.Base, 0), # ?
+    "ཝ": ("v", Cats.Base, 0), # yes
     "ཡ": ("y", Cats.Base, 0),
     "ར": ("r", Cats.Base, Special.R),
     "ལ": ("l", Cats.Base, Special.L),
@@ -210,7 +210,7 @@ CHAR_TOKENS = {
     "ཥ": ("ṣ", Cats.Base, 0),
     "ས": ("s", Cats.Base, 0),
     "ཧ": ("h", Cats.Base, 0),
-    "ཨ": ("", Cats.Base, 0), # ?
+    "ཨ": ("", Cats.Base, 0), # should be "a", but finish_aksara() adds it already
     "ཀྵ": ("kṣ", Cats.Base, 0),
     "ཪ": ("r", Cats.Base, Special.R),
     "\u0f71": ("ā", Cats.Vowel, Special.Lengthener), # lengthener
@@ -262,7 +262,7 @@ CHAR_TOKENS = {
     "\u0faa": ("ch", Cats.Subscript, 0),
     "\u0fab": ("j", Cats.Subscript, 0),
     "\u0fac": ("jh", Cats.Subscript, 0),
-    "\u0fad": ("v", Cats.Subscript, 0), # ?
+    "\u0fad": ("v", Cats.Subscript, 0), # yes
     "\u0fb1": ("y", Cats.Subscript, 0),
     "\u0fb2": ("r", Cats.Subscript, Special.R),
     "\u0fb3": ("l", Cats.Subscript, Special.L),
@@ -309,6 +309,7 @@ def test():
     assert_conv("ག\u0f84མ", "gma") # virama
     assert_conv("བྷིཀྵཱུ", "bhikṣū")
     assert_conv("ཎཱཾ", "ṇāṃ")
+    assert_conv("དུརྦྲྀཏྟཾ", "durbṛttaṃ")
 
 def test_D4155():
     s = Path("D4155.txt").read_text()
@@ -319,5 +320,6 @@ def shortTest():
     res = tibskrit_to_iast('།ཀརྨྨོ་པ་དེ་ཤཾ་བྷིཀྵཱུ་ཎཱཾ་སརྦྦ་ཛྙཿཀརྟྟ་མུ་ཏྱ་ཏཿ།')
     print(res)
 
-shortTest()
-#test_D4155()
+#test()
+#shortTest()
+test_D4155()
