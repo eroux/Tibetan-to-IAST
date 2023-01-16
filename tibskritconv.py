@@ -37,7 +37,7 @@ def lengthen(c):
 
 class State(Enum):
     Other = 0
-    AfterConsonnant = 1
+    AfterConsonant = 1
     AfterVowel = 2
     AfterVirama = 3
 
@@ -52,10 +52,11 @@ class StateAutomaton():
         self.after_r = False
         self.after_l = False
         self.vowel = None
+        self.post_vowel = None
         self.state = State.Other
 
     def finish_aksara(self):
-        if self.state == State.AfterConsonnant or self.state == State.AfterVowel:
+        if self.state == State.AfterConsonant or self.state == State.AfterVowel:
             if self.vowel is None:
                 self.vowel = "a"
             if self.lengthened:
@@ -66,6 +67,9 @@ class StateAutomaton():
                 self.res += "l"+self.vowel
             else:
                 self.res += self.vowel
+            if self.post_vowel:
+                self.res += self.post_vowel
+                self.post_vowel = None
         self.reset()
 
     def get_result(self):
@@ -76,7 +80,7 @@ class StateAutomaton():
         (token_s, cat, special) = t
         logging.debug("new token (%s, %s, %s), state ('%s', %s, r=%s, l=%s, long=%s)", token_s, cat, special, self.res, self.state, self.after_r, self.after_l, self.lengthened)
         if cat == Cats.Base and (special == Special.L or special == Special.R):
-            if self.state == State.AfterConsonnant:
+            if self.state == State.AfterConsonant:
                 # add a
                 self.finish_aksara()
         if special == Special.R:
@@ -86,7 +90,7 @@ class StateAutomaton():
             if self.after_r:
                 self.res += "r"
             self.after_r = True
-            self.state = State.AfterConsonnant
+            self.state = State.AfterConsonant
         elif special == Special.L:
             if self.after_r:
                 self.res += "r"
@@ -94,7 +98,7 @@ class StateAutomaton():
             if self.after_l:
                 self.res += "l"
             self.after_l = True
-            self.state = State.AfterConsonnant
+            self.state = State.AfterConsonant
         elif special == Special.I or special == Special.LongI:
             if special == Special.LongI:
                 self.lengthened = True
@@ -148,14 +152,18 @@ class StateAutomaton():
                     logging.warn("virama after a vowel")
                 self.reset()
                 self.state = State.AfterVirama
+            if cat == Cats.AfterVowel:
+                self.post_vowel = token_s
             if cat == Cats.Base:
-                if self.state == State.AfterConsonnant or self.state == State.AfterVowel:
+                if self.state == State.AfterConsonant:# or self.state == State.AfterVowel:
                     # add a
                     self.finish_aksara()
                 self.res += token_s
-                self.state = State.AfterConsonnant
+                self.state = State.AfterConsonant
             if cat == Cats.Subscript:
                 self.res += token_s
+
+TSEG = " "
 
 CHAR_TOKENS = {
     "ༀ": ("oṃ", Cats.Other, 0),
@@ -164,6 +172,7 @@ CHAR_TOKENS = {
     "༔": ("|", Cats.Other, 0),
     "༏": ("|", Cats.Other, 0),
     "༐": ("|", Cats.Other, 0),
+    "་": (TSEG, Cats.Other, 0),
     "༒": ("|", Cats.Other, 0),
     "ཀ": ("k", Cats.Base, 0),
     "ཁ": ("kh", Cats.Base, 0),
@@ -204,7 +213,7 @@ CHAR_TOKENS = {
     "ཨ": ("", Cats.Base, 0), # ?
     "ཀྵ": ("kṣ", Cats.Base, 0),
     "ཪ": ("r", Cats.Base, Special.R),
-    "\u0f71": ("a", Cats.Vowel, Special.Lengthener), # lengthener
+    "\u0f71": ("ā", Cats.Vowel, Special.Lengthener), # lengthener
     "\u0f72": ("i", Cats.Vowel, 0),
     "\u0f73": ("ī", Cats.Vowel, 0),
     "\u0f74": ("u", Cats.Vowel, 0),
@@ -299,11 +308,16 @@ def test():
     assert_conv("ག\u0f74\u0f71", "gū")
     assert_conv("ག\u0f84མ", "gma") # virama
     assert_conv("བྷིཀྵཱུ", "bhikṣū")
+    assert_conv("ཎཱཾ", "ṇāṃ")
 
 def test_D4155():
     s = Path("D4155.txt").read_text()
     res = tibskrit_to_iast(s)
     print(res)
 
-test()
+def shortTest():
+    res = tibskrit_to_iast('།ཀརྨྨོ་པ་དེ་ཤཾ་བྷིཀྵཱུ་ཎཱཾ་སརྦྦ་ཛྙཿཀརྟྟ་མུ་ཏྱ་ཏཿ།')
+    print(res)
+
+shortTest()
 #test_D4155()
